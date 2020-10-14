@@ -269,7 +269,8 @@ void *sr_arpcache_timeout(void *sr_ptr) {
 void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req) {
 	if (difftime(time(0), req->sent) > 1.0) {
   	    if (req->times_sent >= 5) {
-            for(struct sr_packet *packet = req->packets; packet; packet = packet->next){
+	    struct sr_packet *packet;
+            for(packet = req->packets; packet; packet = packet->next){
                 send_icmp_error(sr, packet->buf, packet->len, UNREACHABLE_TYPE, ICMP_HOST_CODE);
             }
 			sr_arpreq_destroy(&sr->cache, req);
@@ -305,7 +306,7 @@ void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req){
     memcpy(arp_packet->ar_sha, interface->addr, ETHER_ADDR_LEN);
     arp_packet->ar_sip = interface->ip;
     memset(arp_packet->ar_tha, 0x00, ETHER_ADDR_LEN);
-    arp_packet->ar_tip = request->ip;
+    arp_packet->ar_tip = req->ip;
 
     sr_send_packet(sr, packet, len, interface->name);
     free(packet);    
