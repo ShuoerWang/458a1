@@ -13,8 +13,8 @@
 #define UNREACHABLE_TYPE 3
 #define ICMP_HOST_CODE 1
 
-void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req)
-void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req)
+void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req);
+void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req);
 
 /* 
   This function gets called every second. For each request sent out, we keep
@@ -23,7 +23,8 @@ void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req)
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
     /* Fill this in */
-    for (struct sr_arpreq* request = sr->cache.requests; request; request = request->next){
+    struct sr_arpreq* request;
+    for (request = sr->cache.requests; request; request = request->next){
         handle_arpreq(sr, request);
     }
 }
