@@ -10,7 +10,8 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_protocol.h"
-
+#define UNREACHABLE_TYPE 3
+#define ICMP_HOST_CODE 1
 /* 
   This function gets called every second. For each request sent out, we keep
   checking whether we should resend an request or destroy the arp request.
@@ -18,6 +19,9 @@
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
     /* Fill this in */
+    for (struct sr_arpreq* request = sr->cache.requests; request; request = request->next){
+        handle_arpreq(sr, request);
+    }
 }
 
 /* You should not need to touch the rest of this code. */
@@ -245,3 +249,59 @@ void *sr_arpcache_timeout(void *sr_ptr) {
     return NULL;
 }
 
+/*
+ function handle_arpreq(req):
+       if difftime(now, req->sent) > 1.0
+           if req->times_sent >= 5:
+               send icmp host unreachable to source addr of all pkts waiting
+                 on this request
+               arpreq_destroy(req)
+           else:
+               send arp request
+               req->sent = now
+               req->times_sent++
+*/
+void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req) {
+	if (difftime(time(0), req->sent) > 1.0) {
+  	    if (req->times_sent >= 5) {
+            for(struct sr_packet *packet = req->packets; packet; packet = packet->next){
+                send_icmp_unreach(sr, packet->buf, packet->len, UNREACHABLE_TYPE, ICMP_HOST_CODE);
+            }
+			sr_arpreq_destroy(&sr->cache, req);
+			
+		/* Resend ARP request. */
+		} else {
+    	    send_arp_request(sr, req);
+            req->sent = time(0);
+            req->times_sent++;
+        }
+	}
+}
+
+void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req){
+    int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t);
+    uint8_t* packet = malloc(len);
+    sr_ethernet_hdr_t* ether_packet = (sr_ethernet_hdr_t*)packet;
+    sr_arp_hdr_t* arp_packet = (sr_arp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
+
+    struct sr_if* interface = sr_get_interface(sr, req->packets->iface);
+    
+    memset(ether_packet->ether_dhost, 0xFF, ETHER_ADDR_LEN);
+    memcpy(ether_packet->ether_shost, interface->addr, ETHER_ADDR_LEN);
+    ether_packet->ether_type = htons(ethertype_arp);
+
+            
+    arp_packet->ar_hrd = htons(arp_hrd_ethernet);
+    arp_packet->ar_pro = htons(ethertype_ip);
+    arp_packet->ar_hln = ETHER_ADDR_LEN;
+    arp_packet->ar_pln = sizeof(uint32_t);
+    arp_packet->ar_op = htons(arp_op_request);
+
+    memcpy(arp_packet->ar_sha, interface->addr, ETHER_ADDR_LEN);
+    arp_packet->ar_sip = interface->ip;
+    memset(arp_packet->ar_tha, 0x00, ETHER_ADDR_LEN);
+    arp_packet->ar_tip = request->ip;
+
+    sr_send_packet(sr, packet, len, interface->name);
+    free(packet);    
+}
