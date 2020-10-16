@@ -106,6 +106,7 @@ void sr_handlepacket(struct sr_instance* sr,
         char* interface/* lent */)
 {
   /* REQUIRES */
+  fprintf(stderr, "*******************\n");
   assert(sr);
   assert(packet);
   assert(interface);
