@@ -28,6 +28,7 @@
 #define REDIRECT 5
 #define IPv4 4
 #define TTL 64
+#define IP_ADDR_LEN 4
 
 #define UNREACHABLE_TYPE 3
 #define TIME_EXCEEDED 11
@@ -254,7 +255,7 @@ void send_icmp_echo(struct sr_instance* sr,
   src_ip_copy->ip_dst = src_ip_copy->ip_src;
   src_ip_copy->ip_src = dst;
 
-  sr_icmp_hdr *src_icmp = (sr_icmp_hdr_t*) ((uint8_t*)src_ip_copy + sizeof(sr_ip_hdr_t));
+  sr_icmp_hdr_t *src_icmp = (sr_icmp_hdr_t*) ((uint8_t*)src_ip_copy + sizeof(sr_ip_hdr_t));
   src_icmp->icmp_sum = 0;
   src_icmp->icmp_code = ECHO_REPLY;
   src_icmp->icmp_type = 0;
@@ -290,14 +291,14 @@ void send_icmp_error(struct sr_instance* sr,
   new_ip->ip_sum = 0;
   new_ip->ip_dst = ip_packet->ip_src;
 
-  struct sr_rt* router = match_longest_prefix(sr, ip_packet->ip_src)
+  struct sr_rt* router = match_longest_prefix(sr, ip_packet->ip_src);
   if(!router){
     return;
   }
   struct sr_if *interface = sr_get_interface(sr, router->interface);
 
   new_ip->ip_src = interface->ip;
-  new_ip->ip_sum = cksum(replyIpHeader, getIpHeaderLength(replyIpHeader));
+  new_ip->ip_sum = cksum(new_ip, new_ip->ip_hl * 4);
 
   new_icmp->icmp_type = type;
   new_icmp->icmp_code = code;
@@ -339,7 +340,7 @@ void check_and_send(struct sr_instance *sr,
     free(arp_entry);
   }else{
     struct sr_arpreq *arp_reqs = sr_arpcache_queuereq(&sr->cache, router->gw.s_addr, packet, len, router->interface);
-    handle_arpreq(sr, arq_reqs);
+    handle_arpreq(sr, arp_reqs);
     free(packet);
   }
 
@@ -349,8 +350,8 @@ void check_and_send(struct sr_instance *sr,
 struct sr_rt *match_longest_prefix(struct sr_instance* sr, uint32_t ip){
   struct sr_rt* longest = NULL;
   uint32_t length = 0;
-
-  for(struct sr_rt* curr = sr->routing_table; curr; curr = curr->next){
+  struct sr_rt* curr;
+  for(curr = sr->routing_table; curr; curr = curr->next){
     /* if the destination match*/
     if((curr->dest.s_addr & curr->mask.s_addr) == (ip & curr->mask.s_addr)
     /*if it is the longest till now*/
@@ -414,7 +415,7 @@ void handle_ARP(struct sr_instance* sr,
 
     check_and_send(sr, new_packet, len, ethertype_ip, new_arp->ar_sip);
     free(new_packet);
-  }else if(ntohs(arp_hdr->ar_op) == arp_op_reply){
+  }else if(ntohs(arp_packet->ar_op) == arp_op_reply){
     struct sr_arpreq* req = 
       sr_arpcache_insert(&sr->cache, arp_packet->ar_sha, arp_packet->ar_sip);
     if(req){
@@ -435,7 +436,5 @@ void handle_ARP(struct sr_instance* sr,
       
     }
   }
-
-  return;
 }
 
