@@ -306,7 +306,7 @@ void send_icmp_error(struct sr_instance* sr,
   new_icmp->icmp_sum = 0;
   new_icmp->unused = 0;
   new_icmp->next_mtu = 0;
-  memcpy(icmp_hdr->data, ip_packet, ICMP_DATA_SIZE);
+  memcpy(new_icmp->data, ip_packet, ICMP_DATA_SIZE);
   new_icmp->icmp_sum = cksum(new_icmp, sizeof(sr_icmp_t3_hdr_t));
 
   check_and_send(sr, new_packet, new_len, ethertype_ip, new_ip->ip_dst);
