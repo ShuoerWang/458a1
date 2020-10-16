@@ -35,6 +35,24 @@
 #define ICMP_NET_CODE 0
 #define ICMP_PORT_CODE 3
 
+
+void handle_IP(struct sr_instance* sr, uint8_t * packet, 
+  unsigned int len, char* interface);
+void forward_IP(struct sr_instance* sr, uint8_t * packet,
+  unsigned int len, char* interface);
+void handle_Icmp(struct sr_instance* sr,  uint8_t * packet,
+  unsigned int len, char* interface);
+
+void send_icmp_echo(struct sr_instance* sr, uint8_t * packet,
+  unsigned int len);
+void send_icmp_error(struct sr_instance* sr, uint8_t * packet,
+  unsigned int len, uint8_t type, uint8_t code);
+void check_and_send(struct sr_instance *sr, uint8_t *packet, unsigned int len,
+  enum sr_ethertype type, uint32_t dst_ip);
+struct sr_rt *match_longest_prefix(struct sr_instance* sr, uint32_t ip);
+
+void handle_ARP(struct sr_instance* sr, uint8_t * packet,
+  unsigned int len, char* interface);
 /*---------------------------------------------------------------------
  * Method: sr_init(void)
  * Scope:  Global
@@ -296,10 +314,11 @@ void send_icmp_error(struct sr_instance* sr,
 
 
 void check_and_send(struct sr_instance *sr,
-        uint8_t* packet,
+        uint8_t *packet,
         unsigned int len,
         enum sr_ethertype type,
-        uint32_t dst_ip){
+        uint32_t dst_ip)
+{
           
   /*find the longest matched entry of routing table*/
   struct sr_rt* router = match_longest_prefix(sr, dst_ip);

@@ -12,6 +12,10 @@
 #include "sr_protocol.h"
 #define UNREACHABLE_TYPE 3
 #define ICMP_HOST_CODE 1
+
+void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req)
+void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req)
+
 /* 
   This function gets called every second. For each request sent out, we keep
   checking whether we should resend an request or destroy the arp request.
@@ -265,7 +269,7 @@ void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req) {
 	if (difftime(time(0), req->sent) > 1.0) {
   	    if (req->times_sent >= 5) {
             for(struct sr_packet *packet = req->packets; packet; packet = packet->next){
-                send_icmp_unreach(sr, packet->buf, packet->len, UNREACHABLE_TYPE, ICMP_HOST_CODE);
+                send_icmp_error(sr, packet->buf, packet->len, UNREACHABLE_TYPE, ICMP_HOST_CODE);
             }
 			sr_arpreq_destroy(&sr->cache, req);
 			
