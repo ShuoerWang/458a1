@@ -221,6 +221,7 @@ void handle_Icmp(struct sr_instance* sr,
   if (len < sizeof(sizeof(sr_ethernet_hdr_t) + sizeof(sr_icmp_hdr_t) + (ip_packet->ip_hl * 4))){
     fprintf(stderr, "Icmp Packet too short");
     return;
+  }
     
   sr_icmp_hdr_t* icmp_packet = (sr_icmp_hdr_t*)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
   /* checksum */
@@ -233,7 +234,7 @@ void handle_Icmp(struct sr_instance* sr,
   }
   icmp_packet->icmp_sum = received;
 
-  if(icmp_hdr->icmp_type == ECHO_REQUEST){
+  if(icmp_packet->icmp_type == ECHO_REQUEST){
     send_icmp_echo(sr, packet, len);
   }
 }
@@ -433,7 +434,6 @@ void handle_ARP(struct sr_instance* sr,
         }
       }
       sr_arpreq_destroy(&sr->cache, req);
-      
     }
   }
 }
