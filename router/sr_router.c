@@ -13,7 +13,8 @@
 
 #include <stdio.h>
 #include <assert.h>
-
+#include <stdlib.h>
+#include <string.h>
 
 #include "sr_if.h"
 #include "sr_rt.h"
@@ -53,6 +54,7 @@ struct sr_rt *match_longest_prefix(struct sr_instance* sr, uint32_t ip);
 
 void handle_ARP(struct sr_instance* sr, uint8_t * packet,
   unsigned int len, char* interface);
+int check_dst(struct sr_instance* sr, uint32_t dst_ip);
 /*---------------------------------------------------------------------
  * Method: sr_init(void)
  * Scope:  Global
@@ -119,7 +121,7 @@ void sr_handlepacket(struct sr_instance* sr,
   /* get type of packet */
   if (ethertype(packet) == ethertype_ip) {
     handle_IP(sr, packet, len, interface);
-  } else (ethertype(packet) == ethertype_arp){
+  } else if (ethertype(packet) == ethertype_arp){
     handle_ARP(sr, packet, len, interface);
   } else {
     fprintf(stderr, "Wrong packet protocol type\n");
@@ -178,7 +180,7 @@ void forward_IP(struct sr_instance* sr,
         char* interface/* lent */)
 {
   sr_ip_hdr_t *ip_packet = (sr_ip_hdr_t*)(packet + sizeof(sr_ethernet_hdr_t));
-  if(ip_packet->ipttl == 1){
+  if(ip_packet->ip_ttl == 1){
     fprintf(stderr, "packet time out\n");
     send_icmp_error(sr, packet, len, TIME_EXCEEDED, TIME_EXCEEDED_CODE);
     return;
@@ -196,7 +198,7 @@ void forward_IP(struct sr_instance* sr,
 
 
 int check_dst(struct sr_instance* sr, uint32_t dst_ip){
-  struct sr_if* temp = sr->if_list
+  struct sr_if* temp = sr->if_list;
   while(temp){
     if(dst_ip == temp->ip){
       return 1;
@@ -239,9 +241,6 @@ void send_icmp_echo(struct sr_instance* sr,
         uint8_t * packet/* lent */,
         unsigned int len)
 {
-  
-  sr_ip_hdr_t *ip_packet = (sr_ip_hdr_t*)(packet + sizeof(sr_ethernet_hdr_t));
-
   /*create a new packet*/
   uint8_t* new_packet = malloc(len);
   sr_ip_hdr_t* new_ip = (sr_ip_hdr_t*) (new_packet + sizeof(sr_ethernet_hdr_t));
@@ -252,10 +251,10 @@ void send_icmp_echo(struct sr_instance* sr,
   sr_ip_hdr_t *src_ip_copy;
   memcpy(src_ip_copy, src_ip, len - sizeof(sr_ethernet_hdr_t));
   uint32_t dst = src_ip_copy->ip_dst;
-  src_ip_copy->ip_dst = src_ip_copy->src;
-  src_ip_copy->src = dst;
+  src_ip_copy->ip_dst = src_ip_copy->ip_src;
+  src_ip_copy->ip_src = dst;
 
-  sr_ip_hdr_t *src_icmp = (sr_icmp_hdr_t*) ((uint8_t*)src_ip_copy + sizeof(sr_ip_hdr_t));
+  sr_icmp_hdr *src_icmp = (sr_icmp_hdr_t*) ((uint8_t*)src_ip_copy + sizeof(sr_ip_hdr_t));
   src_icmp->icmp_sum = 0;
   src_icmp->icmp_code = ECHO_REPLY;
   src_icmp->icmp_type = 0;
@@ -332,7 +331,7 @@ void check_and_send(struct sr_instance *sr,
   struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, router->gw.s_addr);
   if(arp_entry){
     sr_ethernet_hdr_t* ether_packet = (sr_ethernet_hdr_t*)packet;
-    ether_packet->ether_type = htons(type)
+    ether_packet->ether_type = htons(type);
     memcpy(ether_packet->ether_shost, interface->addr, ETHER_ADDR_LEN);
     memcpy(ether_packet->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
     sr_send_packet(sr, packet, len, router->interface);
@@ -340,7 +339,7 @@ void check_and_send(struct sr_instance *sr,
     free(arp_entry);
   }else{
     struct sr_arpreq *arp_reqs = sr_arpcache_queuereq(&sr->cache, router->gw.s_addr, packet, len, router->interface);
-    arpreq_handle(sr, arq_req);
+    handle_arpreq(sr, arq_reqs);
     free(packet);
   }
 
@@ -353,11 +352,11 @@ struct sr_rt *match_longest_prefix(struct sr_instance* sr, uint32_t ip){
 
   for(struct sr_rt* curr = sr->routing_table; curr; curr = curr->next){
     /* if the destination match*/
-    if((curr->dest.s_addr & curr->mask.s_ddr) == (ip & curr->mask.s_addr)
+    if((curr->dest.s_addr & curr->mask.s_addr) == (ip & curr->mask.s_addr)
     /*if it is the longest till now*/
-      && (length <= curr->mask.s_ddr)){
+      && (length <= curr->mask.s_addr)){
         longest = curr;
-        length = curr->mask.s_ddr;
+        length = curr->mask.s_addr;
     }
   }
   return longest;
@@ -392,7 +391,7 @@ void handle_ARP(struct sr_instance* sr,
     return;
   }
 
-  if(ntohs(arp_hdr->ar_op) == arp_op_request){
+  if(ntohs(arp_packet->ar_op) == arp_op_request){
     uint8_t *new_packet = malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t));
     sr_ethernet_hdr_t *new_ether = (sr_ethernet_hdr_t*) new_packet;
     sr_arp_hdr_t *new_arp = (sr_arp_hdr_t*)(new_packet + sizeof(sr_ethernet_hdr_t));
@@ -419,7 +418,8 @@ void handle_ARP(struct sr_instance* sr,
     struct sr_arpreq* req = 
       sr_arpcache_insert(&sr->cache, arp_packet->ar_sha, arp_packet->ar_sip);
     if(req){
-      for(struct sr_packet *packet = cached->packets; packet; packet = packet->next){
+      struct sr_packet *packet;
+      for(packet = req->packets; packet; packet = packet->next){
         struct sr_if* in_interface = sr_get_interface(sr, packet->iface);
         if(in_interface){
           sr_ethernet_hdr_t *ether_packet = (sr_ethernet_hdr_t*)(packet->buf);
