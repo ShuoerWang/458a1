@@ -267,20 +267,18 @@ void *sr_arpcache_timeout(void *sr_ptr) {
                req->times_sent++
 */
 void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req) {
-	if (difftime(time(0), req->sent) > 1.0) {
-  	    if (req->times_sent >= 5) {
-	    struct sr_packet *packet;
-            for(packet = req->packets; packet; packet = packet->next){
-                send_icmp_error(sr, packet->buf, packet->len, UNREACHABLE_TYPE, ICMP_HOST_CODE);
-            }
-		sr_arpreq_destroy(&sr->cache, req);
+    if (req->times_sent >= 5) {
+	struct sr_packet *packet;
+        for(packet = req->packets; packet; packet = packet->next){
+	    fprintf(stderr,"arq request time out");
+            send_icmp_error(sr, packet->buf, packet->len, UNREACHABLE_TYPE, ICMP_HOST_CODE);
+        }
+	sr_arpreq_destroy(&sr->cache, req);
 			
-	    } else {
-    	        send_arp_request(sr, req);
-            	req->sent = time(0);
-            	req->times_sent++;
-            }
-	}
+	} else {
+    	    send_arp_request(sr, req);
+            req->times_sent++;
+        }
 }
 
 void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req){
