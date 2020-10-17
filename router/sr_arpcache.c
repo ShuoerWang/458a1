@@ -285,7 +285,6 @@ void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req) {
 }
 
 void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req){
-    printf("sending arp request\n");
     int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t);
     /*create a packet*/
     uint8_t* packet = malloc(len);

@@ -195,7 +195,6 @@ void forward_IP(struct sr_instance* sr,
   sr_ip_hdr_t *ip_packet = (sr_ip_hdr_t*)(packet + sizeof(sr_ethernet_hdr_t));
   /*time limit check*/
   if(ip_packet->ip_ttl == 1){
-    fprintf(stderr, "packet time out\n");
     send_icmp_error(sr, packet, len, TIME_EXCEEDED, TIME_EXCEEDED_CODE);
     return;
   }
