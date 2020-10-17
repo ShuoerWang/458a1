@@ -267,40 +267,45 @@ void *sr_arpcache_timeout(void *sr_ptr) {
                req->times_sent++
 */
 void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req) {
+    /*sent too many times*/
     if (req->times_sent >= 5) {
-	struct sr_packet *packet;
-	printf("arp request time out.\n");
+	    struct sr_packet *packet;
+        /*for all the packets waiting in the queue, tell them cannot reach*/
         for(packet = req->packets; packet; packet = packet->next){
             send_icmp_error(sr, packet->buf, packet->len, UNREACHABLE_TYPE, ICMP_HOST_CODE);
         }
-	sr_arpreq_destroy(&sr->cache, req);
+        /*request is done, destroy it*/
+	    sr_arpreq_destroy(&sr->cache, req);
 			
 	} else {
-    	    send_arp_request(sr, req);
-            req->times_sent++;
-        }
+        /*send arp request*/
+    	send_arp_request(sr, req);
+        req->times_sent++;
+    }
 }
 
 void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req){
     printf("sending arp request\n");
     int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t);
+    /*create a packet*/
     uint8_t* packet = malloc(len);
     sr_ethernet_hdr_t* ether_packet = (sr_ethernet_hdr_t*)packet;
     sr_arp_hdr_t* arp_packet = (sr_arp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
 
     struct sr_if* interface = sr_get_interface(sr, req->packets->iface);
-    
+    /*for broadcast*/
     memset(ether_packet->ether_dhost, 0xFF, ETHER_ADDR_LEN);
     memcpy(ether_packet->ether_shost, interface->addr, ETHER_ADDR_LEN);
     ether_packet->ether_type = htons(ethertype_arp);
 
-            
+    /*set arp header*/
     arp_packet->ar_hrd = htons(arp_hrd_ethernet);
     arp_packet->ar_pro = htons(ethertype_ip);
     arp_packet->ar_hln = ETHER_ADDR_LEN;
     arp_packet->ar_pln = sizeof(uint32_t);
     arp_packet->ar_op = htons(arp_op_request);
 
+    /*load in and send*/
     memcpy(arp_packet->ar_sha, interface->addr, ETHER_ADDR_LEN);
     arp_packet->ar_sip = interface->ip;
     memset(arp_packet->ar_tha, 0x00, ETHER_ADDR_LEN);
