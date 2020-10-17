@@ -273,18 +273,18 @@ void handle_arpreq(struct sr_instance *sr, struct sr_arpreq *req) {
             for(packet = req->packets; packet; packet = packet->next){
                 send_icmp_error(sr, packet->buf, packet->len, UNREACHABLE_TYPE, ICMP_HOST_CODE);
             }
-			sr_arpreq_destroy(&sr->cache, req);
+		sr_arpreq_destroy(&sr->cache, req);
 			
-		/* Resend ARP request. */
-		} else {
-    	    send_arp_request(sr, req);
-            req->sent = time(0);
-            req->times_sent++;
-        }
+	    } else {
+    	        send_arp_request(sr, req);
+            	req->sent = time(0);
+            	req->times_sent++;
+            }
 	}
 }
 
 void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req){
+    printf("sending arp request\n");
     int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t);
     uint8_t* packet = malloc(len);
     sr_ethernet_hdr_t* ether_packet = (sr_ethernet_hdr_t*)packet;
