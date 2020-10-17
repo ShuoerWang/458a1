@@ -350,7 +350,7 @@ void check_and_send(struct sr_instance *sr,
   print_addr_ip_int(dst_ip);
   printf("\n");
   struct sr_if *interface = sr_get_interface(sr, router->interface);
-  struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, router->gw.s_addr);
+  struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ntohl(router->gw.s_addr));
   sr_ethernet_hdr_t *ether_packet = (sr_ethernet_hdr_t*)packet;
   memcpy(ether_packet->ether_shost, interface->addr, ETHER_ADDR_LEN);
   ether_packet->ether_type = htons(type);
@@ -362,9 +362,10 @@ void check_and_send(struct sr_instance *sr,
   }else{
     printf("arp entry not found, need to send request\n");
     struct sr_arpreq *arp_reqs = sr_arpcache_queuereq(&sr->cache, router->gw.s_addr, packet, len, router->interface);
-    if(arp_reqs->times_sent == 0)
+    if(arp_reqs->times_sent == 0){
         handle_arpreq(sr, arp_reqs);
-    
+        arp_reqs->sent = time(NULL);
+    }
   }
 
 }
