@@ -362,7 +362,7 @@ void check_and_send(struct sr_instance *sr,
   struct sr_if *interface = sr_get_interface(sr, router->interface);
 
   /*check wheter the destination ip is in the arp queue*/
-  struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ntohl(router->gw.s_addr));
+  struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, router->gw.s_addr);
 
   /*update the ethernet header's source host, type*/
   sr_ethernet_hdr_t *ether_packet = (sr_ethernet_hdr_t*)packet;
