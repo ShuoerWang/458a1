@@ -458,7 +458,7 @@ void handle_ARP(struct sr_instance* sr,
     memcpy(new_arp->ar_tha, arp_packet->ar_sha, ETHER_ADDR_LEN);
     new_arp->ar_tip = arp_packet->ar_sip;
 
-    check_and_send(sr, new_packet, len, ethertype_arp, new_arp->ar_sip);
+    sr_send_packet(sr, new_packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t), rec_interface->name);
     free(new_packet);
   }else if(ntohs(arp_packet->ar_op) == arp_op_reply){
     /*if it is a arp reply*/

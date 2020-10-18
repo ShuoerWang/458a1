@@ -290,10 +290,11 @@ void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req){
     uint8_t* packet = malloc(len);
     sr_ethernet_hdr_t* ether_packet = (sr_ethernet_hdr_t*)packet;
     sr_arp_hdr_t* arp_packet = (sr_arp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
-    
+
+    struct sr_if* interface = sr_get_interface(sr, req->packets->iface);
     /*for broadcast*/
     memset(ether_packet->ether_dhost, 0xFF, ETHER_ADDR_LEN);
-    memcpy(ether_packet->ether_shost, req->packets->iface->addr, ETHER_ADDR_LEN);
+    memcpy(ether_packet->ether_shost, interface->addr, ETHER_ADDR_LEN);
     ether_packet->ether_type = htons(ethertype_arp);
 
     /*set arp header*/
@@ -304,11 +305,11 @@ void send_arp_request(struct sr_instance *sr, struct sr_arpreq *req){
     arp_packet->ar_op = htons(arp_op_request);
 
     /*load in and send*/
-    memcpy(arp_packet->ar_sha, req->packets->iface->addr, ETHER_ADDR_LEN);
-    arp_packet->ar_sip = req->packets->iface->ip;
+    memcpy(arp_packet->ar_sha, interface->addr, ETHER_ADDR_LEN);
+    arp_packet->ar_sip = interface->ip;
     memset(arp_packet->ar_tha, 0x00, ETHER_ADDR_LEN);
     arp_packet->ar_tip = req->ip;
 
-    sr_send_packet(sr, packet, len, req->packets->iface->name);
+    sr_send_packet(sr, packet, len, interface->name);
     free(packet);    
 }
