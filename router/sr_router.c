@@ -198,12 +198,13 @@ void forward_IP(struct sr_instance* sr,
     send_icmp_error(sr, packet, len, TIME_EXCEEDED, TIME_EXCEEDED_CODE);
     return;
   }
-  /*get lpm, check it*/
-  struct sr_rt *router = match_longest_prefix(sr, ip_packet->ip_dst);
-  if(!router){
-    return;
-  }
+  // /*get lpm, check it*/
+  // struct sr_rt *router = match_longest_prefix(sr, ip_packet->ip_dst);
+  // if(!router){
+  //   return;
+  // }
 
+  /*create new packet*/
   uint8_t* new_packet = malloc(len);
   sr_ip_hdr_t* new_ip = (sr_ip_hdr_t*) (new_packet + sizeof(sr_ethernet_hdr_t));  
   memcpy(new_ip, ip_packet,len - sizeof(sr_ethernet_hdr_t));
